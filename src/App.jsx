@@ -22,6 +22,7 @@ function App() {
   const [stages, setStages] = useState(null);
   const [shooters, setShooters] = useState(null);
   const [scores, setScores] = useState(null);
+  const [firstTime, setFirstTime] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -31,13 +32,15 @@ function App() {
         .map(key => ({..._matches[key], id: key}))
         .filter(match => match.countryCode === 'IL')
         .filter(match => match.ipscLevel > 0)
-        .sort((a, b) => -1 * (new Date(`${a.startDate.year}-${a.startDate.month}-${a.startDate.day}`).getTime() - new Date(`${b.startDate.year}-${b.startDate.month}-${b.startDate.day}`).getTime()))
-        .slice(0,  100);
+        .sort((a, b) => -1 * (new Date(`${a.startDate.year}-${a.startDate.month}-${a.startDate.day}`).getTime() - new Date(`${b.startDate.year}-${b.startDate.month}-${b.startDate.day}`).getTime()));
+
+      setFirstTime({ total: ilMatches.length, currennt: 0 });
 
       const _shooters = {};
       const _scores = {};
       const _stages = {};
       for (let i = 0; i < ilMatches.length; i++) {
+        setFirstTime({ total: ilMatches.length, current: i });
         const match = ilMatches[i];
         try {
           const existing = await dbManager.getItem(`match_${match.id}`);
@@ -114,10 +117,20 @@ function App() {
           <Main matches={matches} shooters={shooters} scores={scores} stages={stages} />
         )}
         {!(matches && shooters && scores) && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-            <CircularProgress />
-            <Typography component='div' variant='body1' sx={{ mt: 2 }}>טוען נתונים (עלול לקחת זמן בפעם הראשונה)...</Typography>
-          </Box>
+          <>
+            {!firstTime && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                <CircularProgress />
+                <Typography component='div' variant='body1' sx={{ mt: 2 }}>טוען נתונים...</Typography>
+              </Box>
+            )}
+            {firstTime && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                <Typography component='div' variant='body1' sx={{ mt: 2 }}>טוען נתונים. נמצאו {firstTime.total} תחרויות</Typography>
+                <Typography>{parseInt(firstTime.current * 100/ firstTime.total)}%</Typography>
+              </Box>
+            )}
+          </>
         )}
       </Container>
     </Box>
@@ -126,7 +139,9 @@ function App() {
 
 function Main({ matches, shooters, scores, stages }) {
   const [selectedShooter, setSelectedShooter] = useState(null);
-  const allshooters = _.uniq(Object.values(shooters).flat().map(s => `${s.publicId} - ${s.name}`));
+  window.shooters = shooters;
+  window._ = _;
+  const allshooters = useMemo(() => _(shooters).values().flatten().groupBy('publicId').map((s,k) => `${k} - ${_.uniq(s.map(ss => ss.name)).join(', ')}`).value(), [shooters]);
   const shooter = Object.values(shooters).flat().find(s => selectedShooter?.startsWith(`${s.publicId} - `));
 
   const shooterMatchers = useMemo(() => {
@@ -185,7 +200,7 @@ export default App;
 function getLatestScoreForShooterPerStage({ scores, numStages, stages, addAllScores = false }) {
     const $scores = _(scores)
         .filter((score) => !score.deleted)
-        .filter((score) => !stages || !stages[score.stageIdx - 1].inactive || !!score.dq)
+        .filter((score) => !stages || !stages[score.stageIdx - 1]?.inactive || !!score.dq)
         .groupBy('stageIdx')
         .mapValues((stageScore) => _(stageScore)
             .groupBy('shooterId')
