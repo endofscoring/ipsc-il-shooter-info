@@ -12,6 +12,7 @@ import {
   Autocomplete,
   TextField,
   Paper,
+  Chip,
 } from '@mui/material';
 import { red, green } from '@mui/material/colors';
 import { Home as HomeIcon } from '@mui/icons-material';
@@ -179,6 +180,24 @@ function Main({ matches, shooters, scores, stages }) {
             {!dqed && (
               <Box>
                 ניקוד ב-{parseInt(numScored * 100 / stages[m.id].length)}% מהתחרות
+                {matchShooter.division && (
+                  <> - {matchShooter.division}</>
+                )}
+                {matchShooter.category && (
+                  <> - {matchShooter.category}</>
+                )}
+              </Box>
+            )}
+            {!_.isEmpty(matchShooter.labels) && (
+              <Box>
+                {matchShooter.labels.map(l => (
+                  <Chip key={l} label={l} />
+                ))}
+              </Box>
+            )}
+            {_.isEmpty(matchShooter.labels) && (
+              <Box>
+                <Chip label='יורה רגיל' />
               </Box>
             )}
             {dqed && (
